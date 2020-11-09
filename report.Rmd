@@ -1,0 +1,13 @@
+---
+output: html_document
+params:
+  year: 2020
+  month: 10
+title: "GSR report for `r params$year`-`r params$month`"
+---
+
+
+```{r}
+print(params$year)
+print(params$month)
+```
