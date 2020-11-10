@@ -1,13 +1,126 @@
 ---
-output: html_document
 params:
   year: 2020
   month: 10
 title: "GSR report for `r params$year`-`r params$month`"
+output:
+  html_document:
+    code_folding: hide
+    toc: true
 ---
 
+```{r setup, message=FALSE}
+knitr::opts_chunk$set(tidy=FALSE)
+
+# library(dbgaptools)
+library(knitr)
+library(tidyverse)
+library(googlesheets4)
+library(lubridate)
+library(kableExtra)
+
+YEAR <- params$year
+MONTH <- params$month
+
+DATE_START <- ymd_hms(glue::glue("{YEAR}-{MONTH}-01 00:00:01"))
+DATE_END <- DATE_START + months(1)
+
+gsr_kable <- function(...) {
+  kable(...) %>%
+    kable_styling(
+      bootstrap_options=c('striped')
+    )
+}
+```
+
+# All GSR
+
+```{r get-sheet}
+gsr <- suppressMessages(read_sheet("1MRTseAKMOH6u7TerRNZcwKYI5Sga202kRUnUCH4o6Z0")) %>%
+  # Remove TEST gsr.
+  filter(!is.na(`Short name`) & `Short name` != "TEST") %>%
+  # Remove unnecessary columns and rename for easier processing.
+  select(
+    short_name = `Short name`,
+    analyst = `DCC analyst`,
+    date_form_received = `Timestamp`,
+    n_gsr = `Number of GSR`,
+    date_gsr_received = `Date received`,
+    date_gsr_uploaded = `Date uploaded`,
+    date_gsr_released = `Date released`
+  )
+
+gsr_kable(gsr)
+```
+
+# Detailed tables
+
+
+## Form response received this month
 
 ```{r}
-print(params$year)
-print(params$month)
+form_responses_ytd <- gsr %>%
+  filter(date_form_received < DATE_END)
+form_responses <- form_responses_ytd %>%
+  filter(date_form_received >= DATE_START)
+gsr_kable(form_responses)
+```
+
+## GSR in pre-curation this month
+
+```{r}
+gsr_precuration_ytd <- gsr %>%
+  filter(!is.na(date_gsr_received), date_gsr_received < DATE_END)
+gsr_precuration <- gsr_precuration_ytd %>%
+  filter(date_gsr_received > DATE_START)
+gsr_kable(gsr_precuration)
+```
+
+## GSR submitted this month
+
+```{r}
+gsr_submitted_ytd <- gsr %>%
+  filter(date_gsr_uploaded < DATE_END)
+gsr_submitted <- gsr_submitted_ytd %>%
+  filter(date_gsr_uploaded >= DATE_START)
+gsr_kable(gsr_submitted)
+```
+
+## GSR released this months
+
+```{r}
+gsr_released_ytd <- gsr %>%
+  filter(date_gsr_released < DATE_END)
+gsr_released <- gsr_released_ytd %>%
+  filter(date_gsr_released >= DATE_START)
+gsr_kable(gsr_released)
+```
+
+# Counts
+
+```{r}
+bind_rows(
+  tibble(
+    Deliverable = "Number of GSR requests received by the DCC",
+    month = nrow(form_responses),
+    contract = nrow(form_responses_ytd),
+  ),
+  tibble(
+    Deliverable = "Number of GSR sets in pre-curation at the DCC",
+    month = sum(gsr_precuration$n_gsr),
+    contract = sum(gsr_precuration_ytd$n_gsr),
+  ),
+  tibble(
+    Deliverable = "Number of GSR sets submitted to dbGaP",
+    month = sum(gsr_submitted$n_gsr),
+    contract = sum(gsr_submitted_ytd$n_gsr),
+  ),
+  tibble(
+    Deliverable = "Number of GSR sets publicly released by dbGaP",
+    month = sum(gsr_released$n_gsr),
+    contract = sum(gsr_released_ytd$n_gsr),
+  ),
+) %>%
+  kable() %>%
+  kable_styling(full_width = FALSE)
 ```
