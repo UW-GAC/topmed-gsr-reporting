@@ -9,6 +9,8 @@ argp <- add_argument(argp, "year", help = "Numeric year for report eg 2020")
 argp <- add_argument(argp, "month", help = "Numeric month for report eg 10")
 argv <- parse_args(argp)
 
+if (!file.exists("reports")) dir.create("reports")
+
 render_report <- function(year, month) {
   rmarkdown::render(
     'report.Rmd',
